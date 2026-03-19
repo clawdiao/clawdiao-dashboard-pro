@@ -1,0 +1,80 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Checkout — Clawdiao Dashboard Pro</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--primary:#00F5D4;--sec:#7B2FBE;--bg:#0A0A0F;--bg2:#12121A;--text:#E0E0E0}
+body{font-family:'JetBrains Mono',monospace;background:var(--bg);color:var(--text);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+.container{background:var(--bg2);border:1px solid var(--sec);border-radius:16px;padding:40px;max-width:450px;width:100%;text-align:center}
+h1{color:var(--primary);margin-bottom:10px}
+p{color:#888;font-size:13px;margin-bottom:20px}
+.form-group{margin-bottom:15px;text-align:left}
+label{display:block;font-size:11px;color:#aaa;margin-bottom:5px;text-transform:uppercase}
+input{width:100%;padding:12px;border:1px solid #333;border-radius:8px;background:#0D0D15;color:var(--text);font-family:inherit;font-size:14px;outline:none;transition:.3s}
+input:focus{border-color:var(--primary)}
+.price{font-size:32px;color:var(--primary);margin:20px 0;font-family:'JetBrains Mono',monospace}
+.btn{width:100%;padding:14px;background:var(--primary);color:#000;border:none;border-radius:8px;font-weight:700;font-size:16px;cursor:pointer;transition:.3s;margin-top:10px}
+.btn:hover{background:transparent;border:1px solid var(--primary);color:var(--primary)}
+.btn:disabled{opacity:.6;cursor:not-allowed}
+.guarantee{font-size:11px;color:#666;margin-top:20px}
+.loader{border:3px solid #333;border-top:3px solid var(--primary);border-radius:50%;width:24px;height:24px;animation:spin 1s linear infinite;margin:20px auto}
+@keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>🦁 Dashboard PRO</h1>
+  <p>Pagamento 100% seguro • 7 dias de garantia</p>
+  
+  <form id="form">
+    <div class="form-group">
+      <label>Nome</label>
+      <input type="text" id="name" required placeholder="Seu nome completo">
+    </div>
+    <div class="form-group">
+      <label>E-mail</label>
+      <input type="email" id="email" required placeholder="voce@email.com">
+    </div>
+    
+    <div class="price">R$ 297,00</div>
+    <button class="btn" type="submit" id="btn">Finalizar Compra</button>
+    <div class="guarantee">🔒 Pagamento processado pela Stripe</div>
+  </form>
+  
+  <div id="loading" class="loader" style="display:none"></div>
+  <div id="error" style="color:#ff4444;margin-top:15px;font-size:12px"></div>
+</div>
+
+<script>
+const form = document.getElementById('form');
+const btn = document.getElementById('btn');
+const loader = document.getElementById('loading');
+const error = document.getElementById('error');
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  btn.disabled = true; loader.style.display = 'block'; error.textContent = '';
+  try{
+    const res = await fetch('/create-checkout-session', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({name: document.getElementById('name').value, email: document.getElementById('email').value})
+    });
+    const data = await res.json();
+    if(data.sessionId){
+      const stripe = Stripe('pk_test_placeholder'); // Trocar pela chave pública real
+      const {error:stripeError} = await stripe.redirectToCheckout({sessionId: data.sessionId});
+      if(stripeError) throw stripeError;
+    } else throw new Error('Não foi possível criar sessão de pagamento');
+  }catch(e){
+    error.textContent = 'Erro: ' + (e.message || 'Tente novamente');
+    btn.disabled = false; loader.style.display = 'none';
+  }
+});
+</script>
+</body>
+</html>
