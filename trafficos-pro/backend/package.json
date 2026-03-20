@@ -1,0 +1,32 @@
+{
+  "name": "trafficos-backend",
+  "version": "1.0.0",
+  "description": "Backend API para TrafficOS Pro — Sistema de Gestão de Tráfego Pago",
+  "main": "src/server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "test": "node --test src/**/*.test.js",
+    "migrate": "node src/migrations/run.js"
+  },
+  "keywords": ["traffic", "ads", "meta", "google", "neondb", "postgresql"],
+  "author": "Clawdiao",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "helmet": "^7.0.0",
+    "dotenv": "^16.0.3",
+    "pg": "^8.11.0",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.0",
+    "express-rate-limit": "^6.0.8",
+    "compression": "^1.7.4",
+    "express-validator": "^6.15.0",
+    "node-cron": "^3.0.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}
