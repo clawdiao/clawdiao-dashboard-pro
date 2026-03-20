@@ -364,3 +364,83 @@ app.listen(PORT, () => {
   console.log(`ðŸš€ TrafficOS Pro API rodando na porta ${PORT}`);
   console.log(`ðŸ“Š Health: http://localhost:${PORT}/api/health`);
 });
+
+// ============================================
+// AGENT METRICS
+// ============================================
+
+// Listar todos os agentes (leaderboard)
+app.get('/api/agents', async (req, res) => {
+  const { limit = 20, orderBy = 'xp', orderDir = 'DESC' } = req.query;
+  try {
+    const orderField = orderBy === 'xp' ? 'xp' : orderBy === 'accuracy' ? 'accuracy_score' : 'xp';
+    const result = await pool.query(
+      SELECT * FROM agent_metrics WHERE date = CURRENT_DATE ORDER BY   LIMIT ,
+      [parseInt(limit)]
+    );
+    res.json({ success: true, data: result.rows, count: result.rows.length });
+  } catch (error) {
+    console.error('GET /api/agents error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Registrar métricas de um agente
+app.post('/api/agents/metrics', async (req, res) => {
+  const { agent_name, accuracy_score, latency_ms, user_satisfaction, task_completion_rate, tool_usage_efficiency, collaboration_index, tasks_completed, total_time_ms, positive_feedback, negative_feedback, level, xp_gain, new_badges } = req.body;
+  try {
+    const result = await pool.query(
+      INSERT INTO agent_metrics (agent_name, date, accuracy_score, latency_ms, user_satisfaction, task_completion_rate, tool_usage_efficiency, collaboration_index, tasks_completed, total_time_ms, positive_feedback, negative_feedback, level, xp, badges)
+       VALUES (, CURRENT_DATE, , , , , , , , , , , , , )
+       ON CONFLICT (agent_name, date) DO UPDATE SET
+         accuracy_score = EXCLUDED.accuracy_score,
+         latency_ms = EXCLUDED.latency_ms,
+         user_satisfaction = EXCLUDED.user_satisfaction,
+         task_completion_rate = EXCLUDED.task_completion_rate,
+         tool_usage_efficiency = EXCLUDED.tool_usage_efficiency,
+         collaboration_index = EXCLUDED.collaboration_index,
+         tasks_completed = agent_metrics.tasks_completed + EXCLUDED.tasks_completed,
+         total_time_ms = agent_metrics.total_time_ms + EXCLUDED.total_time_ms,
+         positive_feedback = agent_metrics.positive_feedback + EXCLUDED.positive_feedback,
+         negative_feedback = agent_metrics.negative_feedback + EXCLUDED.negative_feedback,
+         level = EXCLUDED.level,
+         xp = agent_metrics.xp + EXCLUDED.xp,
+         badges = CASE WHEN jsonb_array_length(agent_metrics.badges) < jsonb_array_length(EXCLUDED.badges) THEN EXCLUDED.badges ELSE agent_metrics.badges END,
+         updated_at = NOW()
+       RETURNING *,
+      [agent_name, accuracy_score||0, latency_ms||0, user_satisfaction||0, task_completion_rate||0, tool_usage_efficiency||0, collaboration_index||0, tasks_completed||0, total_time_ms||0, positive_feedback||0, negative_feedback||0, level||'Iniciante', xp_gain||0, new_badges||'[]']
+    );
+    res.json({ success: true, data: result.rows[0] });
+  } catch (error) {
+    console.error('POST /api/agents/metrics error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Dashboard de estatísticas gerais dos agentes
+app.get('/api/agents/dashboard', async (req, res) => {
+  try {
+    const [totalAgents, avgAccuracy, avgLatency, totalTasks, avgSatisfaction] = await Promise.all([
+      pool.query('SELECT COUNT(*) as count FROM (SELECT DISTINCT agent_name FROM agent_metrics WHERE date = CURRENT_DATE) as t'),
+      pool.query('SELECT AVG(accuracy_score) as avg FROM agent_metrics WHERE date = CURRENT_DATE'),
+      pool.query('SELECT AVG(latency_ms) as avg FROM agent_metrics WHERE date = CURRENT_DATE'),
+      pool.query('SELECT SUM(tasks_completed) as total FROM agent_metrics WHERE date = CURRENT_DATE'),
+      pool.query('SELECT AVG(user_satisfaction) as avg FROM agent_metrics WHERE date = CURRENT_DATE')
+    ]);
+    res.json({
+      success: true,
+      data: {
+        totalAgents: parseInt(totalAgents.rows[0].count),
+        avgAccuracy: parseFloat(avgAccuracy.rows[0].avg).toFixed(2),
+        avgLatency: Math.round(parseFloat(avgLatency.rows[0].avg)),
+        totalTasksToday: parseInt(totalTasks.rows[0].total),
+        avgSatisfaction: parseFloat(avgSatisfaction.rows[0].avg).toFixed(2),
+        lastUpdated: new Date().toISOString()
+      }
+    });
+  } catch (error) {
+    console.error('GET /api/agents/dashboard error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
